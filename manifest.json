@@ -12,5 +12,8 @@
 	"permissions": [
 		"activeTab",
 		"storage"
-	]
+	],
+	"background": {
+		"scripts": ["jquery-3.2.1.min.js", "popup.js"]
+  }
 }
