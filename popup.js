@@ -1,7 +1,14 @@
 $(document).ready(() => {
 	// Get the current active tab name
-	var activeTab = $('nav').find('.active').text();
+	let activeTab = getActiveTab();
 	loadCurrentTab(activeTab);
+
+	$('.nav-item').click(function () {
+		$('.nav-item').removeClass('active');
+		$(this).addClass('active');
+		activeTab = getActiveTab();
+		loadCurrentTab(activeTab);
+	});
 });
 
 function loadCurrentTab(tabName) {
@@ -12,4 +19,8 @@ function loadCurrentTab(tabName) {
 	} else if (tabName === 'Analysis') {
 		$('#content').load('analysis.html');
 	}
+}
+
+function getActiveTab() {
+	return $('nav').find('.active').text();
 }
