@@ -11,6 +11,18 @@ nav {
 	padding: 5px 0px;
 }
 
+th {
+	color: white;
+}
+
+td {
+	text-align: center;
+}
+
+#content {
+	height: 294px;
+}
+
 .active {
 	text-decoration: underline;
 }
@@ -36,12 +48,36 @@ nav {
 	font-size: 24px;
 }
 
+/* Common Stuff */
+.full-width {
+	width: 100%;
+}
+
+.action-button {
+	width: 20px;
+	height: 20px;
+}
+
+.action-table {
+	background-color: white;
+	border-radius: 3px;
+}
+
 /* Stock Content */
 .stock-table-wrapper {
 	overflow-y: scroll;
+	height: 269px;
 }
 
 .stock-table {
 	width: 100%;
 	padding: 10px;
+}
+
+.loss-text {
+	color: red;
+}
+
+.gain-text {
+	color: green;
 }
