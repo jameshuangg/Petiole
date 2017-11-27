@@ -45,14 +45,14 @@ async function updateValues() {
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
 	$('#stock-content tbody').empty();
-	currentStocks.forEach(function(symbol) {
-		let quote = getStockValue(symbol);
+	currentStocks.forEach(async function(symbol) {
+		let quote = await getStockValue(symbol);
 		// Create a row
 		let row = $('<tr class="gain-text"></tr>');
 		row.append($('<td></td>').text(symbol));
-		row.append($('<td></td>').text(quote.open));
-		row.append($('<td></td>').text(quote.high));
-		row.append($('<td></td>').text(quote.low));
+		row.append($('<td></td>').text(quote['1. open']));
+		row.append($('<td></td>').text(quote['2. high']));
+		row.append($('<td></td>').text(quote['3. low']));
 		$('#stock-content tbody').append(row);
 	});
 }
@@ -86,12 +86,29 @@ function getStockValue(symbol) {
 				// Gets the most recent quote
 				let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'];
 				let quoteObject = jsonResponse['Time Series (1min)'];
-				resolve(quoteObject);
+				resolve(quoteObject[lastRefresh]);
 			}
 		}
 		xhr.open('GET', `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=1min&outputSize=compact&datatype=json&apikey=${API_KEY}`);
 		xhr.send();
 	});
+}
+
+function getDailyOpenStockValue(symbol) {
+	return new Promise(function(resolve, reject) {
+		let xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function () {
+			if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+				let jsonResponse = JSON.parse(xhr.response);
+				let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'].split(' ')[0];
+				let quoteObject = jsonResponse['Time Series (Daily)'];
+				let openPrice = quoteObject[lastRefresh];
+				resolve(openPrice['1. open']);
+			}
+		}
+		xhr.open('GET', `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputSize=compact&datatype=json&apikey=${API_KEY}`);
+		xhr.send();
+	})
 }
 
 function getCurrentStocks() {
