@@ -20,8 +20,19 @@ async function addStock(stockSymbol) {
 	currentStocks.forEach(function(stock) {
 		tempStocks.push(stock);
 	});
-	if (!tempStocks.includes(stockSymbol)) {
-		tempStocks.push(stockSymbol);
+	let stockIncluded = false;
+	for (let tempStock of tempStocks) {
+		if (tempStock.symbol === stockSymbol) {
+			stockIncluded = true;
+		}
+	}
+	if (!stockIncluded) {
+		let stock = {};
+		stock.symbol = stockSymbol;
+		dailyStock = await getDailyOpenStockValue(stockSymbol);
+		stock.openPrice = dailyStock[0];
+		stock.recentDate = dailyStock[1];
+		tempStocks.push(stock);
 	}
 	return new Promise(function(resolve, reject) {
 		resolve(chrome.storage.local.set({ stocks: tempStocks }));
@@ -33,7 +44,7 @@ async function removeStock(stockSymbol) {
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
 	currentStocks.forEach(function(stock) {
-		if (stock === stockSymbol) { return; }
+		if (stock.symbol === stockSymbol) { return; }
 		tempStocks.push(stock);
 	});
 	return new Promise(function(resolve, reject) {
@@ -41,26 +52,31 @@ async function removeStock(stockSymbol) {
 	});
 }
 
-async function updateValues() {
+async function updateStockValues() {
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
-	$('#stock-content tbody').empty();
-	currentStocks.forEach(async function(symbol) {
-		let quote = await getStockValue(symbol);
+	$('#stock-table tbody').empty();
+	currentStocks.forEach(async function(stock) {
+		let quote = await getStockValue(stock.symbol);
 		// Create a row
-		let row = $('<tr class="gain-text"></tr>');
-		row.append($('<td></td>').text(symbol));
+		let row = $('<tr></tr>');
+		row.append($('<td></td>').text(stock.symbol));
+		row.append($('<td></td>').text(stock.openPrice));
 		row.append($('<td></td>').text(quote['1. open']));
-		row.append($('<td></td>').text(quote['2. high']));
-		row.append($('<td></td>').text(quote['3. low']));
-		$('#stock-content tbody').append(row);
+		row.append($('<td></td>').text((quote['1. open'] - stock.openPrice).toFixed(3)));
+		(quote['1. open'] - stock.openPrice > 0) ? row.addClass('gain-text') : row.addClass('loss-text');
+		$('#stock-table tbody').append(row);
 	});
 }
 
 function loadCurrentTab(tabName) {
+	clearInterval(window.interval);
 	if (tabName === 'Stocks') {
 		$('#content').load('stock.html', function() {
-
+			updateStockValues();
+			window.interval = setInterval(function() {
+				updateStockValues();
+			}, 60000)
 		});
 	} else if (tabName === 'Currency') {
 		$('#content').load('currency.html', function() {
@@ -103,7 +119,7 @@ function getDailyOpenStockValue(symbol) {
 				let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'].split(' ')[0];
 				let quoteObject = jsonResponse['Time Series (Daily)'];
 				let openPrice = quoteObject[lastRefresh];
-				resolve(openPrice['1. open']);
+				resolve([openPrice['1. open'], lastRefresh]);
 			}
 		}
 		xhr.open('GET', `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputSize=compact&datatype=json&apikey=${API_KEY}`);
@@ -116,5 +132,13 @@ function getCurrentStocks() {
 		chrome.storage.local.get('stocks', function(storage) {
 			resolve(storage.stocks);
 		});
+	});
+}
+
+function clearStocks() {
+	return new Promise(function(resolve, reject) {
+		let empty = [];
+		chrome.storage.local.set({ stocks: empty });
+		resolve('Cleared Cache');
 	});
 }
