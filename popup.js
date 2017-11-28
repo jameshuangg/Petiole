@@ -17,9 +17,9 @@ async function addStock(stockSymbol) {
 	let tempStocks = [];
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
-	currentStocks.forEach(function(stock) {
+	for(let stock of currentStocks) {
 		tempStocks.push(stock);
-	});
+	}
 	let stockIncluded = false;
 	for (let tempStock of tempStocks) {
 		if (tempStock.symbol === stockSymbol) {
@@ -29,9 +29,9 @@ async function addStock(stockSymbol) {
 	if (!stockIncluded) {
 		let stock = {};
 		stock.symbol = stockSymbol;
-		dailyStock = await getDailyOpenStockValue(stockSymbol);
-		stock.openPrice = dailyStock[0];
-		stock.recentDate = dailyStock[1];
+		let ytdStock = await getYtdCloseStockValue(stockSymbol);
+		stock.closePrice = ytdStock[0];
+		stock.ytdCloseDate = ytdStock[1];
 		tempStocks.push(stock);
 	}
 	return new Promise(function(resolve, reject) {
@@ -43,10 +43,10 @@ async function removeStock(stockSymbol) {
 	let tempStocks = [];
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
-	currentStocks.forEach(function(stock) {
+	for (let stock of currentStocks) {
 		if (stock.symbol === stockSymbol) { return; }
 		tempStocks.push(stock);
-	});
+	}
 	return new Promise(function(resolve, reject) {
 		resolve(chrome.storage.local.set({ stocks: tempStocks }));
 	});
@@ -56,17 +56,21 @@ async function updateStockValues() {
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
 	$('#stock-table tbody').empty();
-	currentStocks.forEach(async function(stock) {
+	let loader = $('<tr><td><p class="saving"><span>.</span><span>.</span><span>.</span></p></td></tr>');
+	$('#stock-table tbody').append(loader);
+	for (let stock of currentStocks) {
 		let quote = await getStockValue(stock.symbol);
 		// Create a row
 		let row = $('<tr></tr>');
 		row.append($('<td></td>').text(stock.symbol));
-		row.append($('<td></td>').text(stock.openPrice));
+		row.append($('<td></td>').text(stock.closePrice));
 		row.append($('<td></td>').text(quote['1. open']));
-		row.append($('<td></td>').text((quote['1. open'] - stock.openPrice).toFixed(3)));
-		(quote['1. open'] - stock.openPrice > 0) ? row.addClass('gain-text') : row.addClass('loss-text');
-		$('#stock-table tbody').append(row);
-	});
+		let difference = (quote['1. open'] - stock.closePrice).toFixed(2);
+		row.append($('<td></td>').text(`${difference > 0 ? '+' : ''}${difference} (${((difference / stock.closePrice) * 100).toFixed(2)}%)`));
+		(quote['1. open'] - stock.closePrice > 0) ? row.addClass('gain-text') : row.addClass('loss-text');
+		$('#stock-table tbody').prepend(row);
+	}
+	loader.remove();
 }
 
 function loadCurrentTab(tabName) {
@@ -77,6 +81,7 @@ function loadCurrentTab(tabName) {
 			window.interval = setInterval(function() {
 				updateStockValues();
 			}, 60000)
+			bindStockActionButtons();
 		});
 	} else if (tabName === 'Currency') {
 		$('#content').load('currency.html', function() {
@@ -110,16 +115,16 @@ function getStockValue(symbol) {
 	});
 }
 
-function getDailyOpenStockValue(symbol) {
+function getYtdCloseStockValue(symbol) {
 	return new Promise(function(resolve, reject) {
 		let xhr = new XMLHttpRequest();
 		xhr.onreadystatechange = function () {
 			if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
 				let jsonResponse = JSON.parse(xhr.response);
-				let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'].split(' ')[0];
 				let quoteObject = jsonResponse['Time Series (Daily)'];
-				let openPrice = quoteObject[lastRefresh];
-				resolve([openPrice['1. open'], lastRefresh]);
+				let lastRefresh = Object.keys(quoteObject)[1];
+				let ytdPrice = quoteObject[lastRefresh];
+				resolve([ytdPrice['4. close'], lastRefresh]);
 			}
 		}
 		xhr.open('GET', `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputSize=compact&datatype=json&apikey=${API_KEY}`);
@@ -140,5 +145,23 @@ function clearStocks() {
 		let empty = [];
 		chrome.storage.local.set({ stocks: empty });
 		resolve('Cleared Cache');
+	});
+}
+
+async function bindStockActionButtons() {
+	$('#stock-add').click(async function() {	
+		let userInput = $('#stock-input').val();
+		$('#stock-input').val('');
+		if (!userInput) { return; }
+		await addStock(userInput);
+		updateStockValues();
+	});
+	
+	$('#stock-remove').click(async function() {
+		let userInput = $('#stock-input').val();
+		$('#stock-input').val('');
+		if (!userInput) { return; }
+		await removeStock(userInput);
+		updateStockValues();
 	});
 }
