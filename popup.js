@@ -275,8 +275,9 @@ async function bindCurrencyActionButtons () {
   $('#currency-add').click(async function() {
     let userFrom = $('#currency-from-input').val();
 		let userIn = $('#currency-in-input').val();
-    $('#stock-input').val('');
-    if (!userFrom || userIn) { return; }
+    $('#currency-from-input').val('');
+		$('#currency-in-input').val('');
+    if (!userFrom || !userIn) { return; }
     await addCurrencies(userFrom, userIn);
     updateCurrencyValues();
   });
@@ -286,7 +287,7 @@ async function bindCurrencyActionButtons () {
 		let userIn = $('#currency-in-input').val();
     $('#currency-from-input').val('');
 		$('#currency-in-input').val('');
-    if (!userFrom || userIn) { return; }
+    if (!userFrom || !userIn) { return; }
     await removeStock(userFrom, userIn);
     updateCurrencyValues();
   });
