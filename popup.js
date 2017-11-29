@@ -46,6 +46,7 @@ async function updateStockValues () {
   $('#stock-table tbody').empty();
   let loader = $('<tr><td><p class="saving"><span>.</span><span>.</span><span>.</span></p></td></tr>');
   $('#stock-table tbody').append(loader);
+	await updateStockYtdClose(currentStocks);
   for (let stock of currentStocks) {
     let quote = await getStockValue(stock.symbol);
     // Create a row
@@ -59,6 +60,25 @@ async function updateStockValues () {
     $('#stock-table tbody').prepend(row);
   }
   loader.remove();
+}
+
+async function updateStockYtdClose (currentStocks) {
+	let tempStocks = [];
+	let currentDate = new Date();
+	let ytdDate = new Date(currentDate.getTime());
+	ytdDate.setDate(currentDate.getDate() - 1);
+	let ytdDateString = `${ytdDate.getFullYear()}-${ytdDate.getMonth() + 1}-${ytdDate.getDate()}`;
+	for (let stock of currentStocks) {
+		if (stock.ytdCloseDate !== ytdDateString) {
+			let ytdStock = await getYtdCloseStockValue(stock.symbol);
+			tempStocks.push({ symbol: stock.symbol, closePrice: ytdStock[0], ytdCloseDate: ytdStock[1] });
+		}	else {
+			tempStocks.push(stock);
+		}
+	}
+	return new Promise(function (resolve, reject) {
+		resolve(chrome.storage.local.set({ stocks: tempStocks }));
+	});
 }
 
 function getStockValue (symbol) {
