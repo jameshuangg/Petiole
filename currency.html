@@ -1,6 +1,6 @@
 <div id="currency-content" class="content">
 	<div class="table-wrapper">
-		<table class="table">
+		<table id="currency-table" class="table">
 			<thead>
 				<tr>
 					<th>From</th>
@@ -9,22 +9,17 @@
 					<th>Value</th>
 				</tr>
 			</thead>
-			<tbody>
-				<tr style="color: grey;">
-					<td>USD</td>
-					<td>$1.00</td>
-					<td>CAD</td>
-					<td>$1.283</td>
-				</tr>
+			<tbody style="color:grey;">
 			</tbody>
 		</table>
 	</div>
 	<table class="full-width action-table">
 		<tbody class="full-width">
 			<tr>
-				<td><img src="add.png" class="action-button"></td>
-				<td><input class="full-width" placeholder="SYMBOL"></td>
-				<td><img src="subtract.png" class="action-button"></td>
+				<td><img id="currency-add" src="add.png" class="action-button"></td>
+				<td><input id="currency-from-input" placeholder="FROM"></td>
+				<td><input id="currency-in-input" placeholder="TO"></td>
+				<td><img id="currency-remove" src="subtract.png" class="action-button"></td>
 			</tr>
 		</tbody>
 	</table>
