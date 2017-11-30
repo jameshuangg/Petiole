@@ -5,9 +5,9 @@ $(document).ready(() => {
   let activeTab = getActiveTab();
   loadCurrentTab(activeTab);
 
-  $('.nav-item').click(function () {
-    $('.nav-item').removeClass('active');
-    $(this).addClass('active');
+  $('.nav-icon').click(function () {
+    $('.nav-icon').removeClass('active-icon');
+    $(this).addClass('active-icon');
     activeTab = getActiveTab();
     loadCurrentTab(activeTab);
   });
@@ -15,51 +15,61 @@ $(document).ready(() => {
 
 /** FUNCTIONS FOR NAVIGATION **/
 function getActiveTab () {
-  return $('nav').find('.active').text();
+  return $('.nav-icon.active-icon').attr('id');
 }
 
 function loadCurrentTab (tabName) {
   clearInterval(window.interval);
-  if (tabName === 'Stocks') {
+  if (tabName === 'stock-nav') {
     $('#content').load('stock.html', function () {
-      updateStockValues();
+			let stockCards;
+      loadStockCards().then(function (result) {
+				stockCards = result;
+			});
       window.interval = setInterval(function () {
-        updateStockValues();
+        updateStockValues(stockCards);
       }, 60000);
-      bindStockActionButtons();
     });
-  } else if (tabName === 'Currency') {
+  } else if (tabName === 'currecy-nav') {
     $('#content').load('currency.html', function () {
-			updateCurrencyValues();
 			window.interval = setInterval(function () {
 				updateCurrencyValues();
 			}, 60000);
-			bindCurrencyActionButtons();
     });
   }
 }
 
 /** FUNCTIONS FOR STOCK CONTENT **/
-async function updateStockValues () {
-  let currentStocks = await getCurrentStocks();
-  if (!currentStocks) { return; }
-  $('#stock-table tbody').empty();
-  let loader = $('<tr><td><p class="saving"><span>.</span><span>.</span><span>.</span></p></td></tr>');
-  $('#stock-table tbody').append(loader);
+async function loadStockCards () {
+	let currentStocks = await getCurrentStocks();
+	if (!currentStocks) { return; }
+	$('#stock-content').empty();
+	let loader = $('<div><p class="saving"><span>.</span><span>.</span><span>.</span></p></div>');
+	$('#stock-content').append(loader);
 	await updateStockYtdClose(currentStocks);
-  for (let stock of currentStocks) {
-    let quote = await getStockValue(stock.symbol);
-    // Create a row
-    let row = $('<tr></tr>');
-    row.append($('<td></td>').text(stock.symbol));
-    row.append($('<td></td>').text(stock.closePrice));
-    row.append($('<td></td>').text(quote['1. open']));
-    let difference = (quote['1. open'] - stock.closePrice).toFixed(2);
-    row.append($('<td></td>').text(`${difference > 0 ? '+' : ''}${difference} (${((difference / stock.closePrice) * 100).toFixed(2)}%)`));
-    (quote['1. open'] - stock.closePrice > 0) ? row.addClass('gain-text') : row.addClass('loss-text');
-    $('#stock-table tbody').prepend(row);
-  }
-  loader.remove();
+	let stockElements = [];
+	for(let stock of currentStocks) {
+		let quote = await getStockValue(stock.symbol);
+		let stockCard = createStockCard(stock.symbol, parseFloat(quote['1. open']), stock.closePrice);
+		$('#stock-content').append(stockCard);
+		stockElements.push(stockCard);
+	}
+	loader.remove();
+	return stockElements;
+}
+
+async function updateStockValues (stockElements) {
+	for (let element of stockElements) {
+		let symbol = element.find('.stock-symbol').text();
+		let currPriceElement = element.find('.stock-detail.currPrice');
+		let currPrice = parseFloat(element.find('.stock-detail.currPrice').text());
+		let differenceElement = element.find('.stock-detail.difference');
+		let difference = parseFloat(element.find('.stock-detail.difference').text());
+
+		let quote = await getStockValue(symbol);
+		currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
+		differenceElement.text(((parseFloat(quote['1. open']) - currPrice) + difference).toFixed(2));
+	}
 }
 
 async function updateStockYtdClose (currentStocks) {
@@ -166,22 +176,22 @@ function clearStocks () {
   });
 }
 
-async function bindStockActionButtons () {
-  $('#stock-add').click(async function() {
-    let userInput = $('#stock-input').val();
-    $('#stock-input').val('');
-    if (!userInput) { return; }
-    await addStock(userInput);
-    updateStockValues();
-  });
-
-  $('#stock-remove').click(async function () {
-    let userInput = $('#stock-input').val();
-    $('#stock-input').val('');
-    if (!userInput) { return; }
-    await removeStock(userInput);
-    updateStockValues();
-  });
+function createStockCard(symbol, currPrice, startPrice) {
+	let card = $('<div class="stock-card"></div>');
+	let stockSymbol = $('<div class="stock-symbol"></div>').text(symbol);
+	let stockDetails = $('<div class="stock-details"></div>');
+	let stockCurrPrice = $('<div class="stock-detail currPrice"></div>').text((currPrice).toFixed(2));
+	let stockDifference = $('<div class="stock-detail difference"></div>').text((currPrice - startPrice).toFixed(2));
+	if (currPrice - startPrice >= 0) {
+		card.addClass('stock-gain');
+	} else {
+		card.addClass('stock-loss');
+	}
+	stockDetails.append(stockCurrPrice);
+	stockDetails.append(stockDifference);
+	card.append(stockSymbol);
+	card.append(stockDetails);
+	return card;
 }
 
 /** FUNCTIONS FOR CURRENCY CONTENT **/
@@ -210,7 +220,7 @@ async function updateCurrencyValues () {
     // Create a row
     let row = $('<tr></tr>');
     row.append($('<td></td>').text(quote['1. From_Currency Code']));
-    row.append($('<td></td>').text('$1'));
+    row.append($('<td></td>').text('1.00'));
     row.append($('<td></td>').text(quote['3. To_Currency Code']));
 		row.append($('<td></td>').text(quote['5. Exchange Rate']));
     $('#currency-table tbody').prepend(row);
@@ -269,26 +279,4 @@ function clearCurrencies () {
 	return new Promise(function (resolve, reject) {
 		resolve(chrome.storage.local.set({ currencies: [] }));
 	});
-}
-
-async function bindCurrencyActionButtons () {
-  $('#currency-add').click(async function() {
-    let userFrom = $('#currency-from-input').val();
-		let userIn = $('#currency-in-input').val();
-    $('#currency-from-input').val('');
-		$('#currency-in-input').val('');
-    if (!userFrom || !userIn) { return; }
-    await addCurrencies(userFrom, userIn);
-    updateCurrencyValues();
-  });
-
-  $('#currency-remove').click(async function () {
-    let userFrom = $('#currency-from-input').val();
-		let userIn = $('#currency-in-input').val();
-    $('#currency-from-input').val('');
-		$('#currency-in-input').val('');
-    if (!userFrom || !userIn) { return; }
-    await removeStock(userFrom, userIn);
-    updateCurrencyValues();
-  });
 }
