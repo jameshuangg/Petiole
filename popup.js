@@ -6,9 +6,14 @@ $(document).ready(() => {
   loadCurrentTab(activeTab);
 
   $('.nav-icon').click(function () {
-    $('.nav-icon').removeClass('active-icon');
+		closeLoading();
+		activeTab = getActiveTab();
+		if (activeTab === $(this).attr('id')) {
+			return;
+		}
+		$('.nav-icon').removeClass('active-icon');
     $(this).addClass('active-icon');
-    activeTab = getActiveTab();
+		activeTab = getActiveTab();
     loadCurrentTab(activeTab);
   });
 });
@@ -30,8 +35,12 @@ function loadCurrentTab (tabName) {
         updateStockValues(stockCards);
       }, 60000);
     });
-  } else if (tabName === 'currecy-nav') {
+  } else if (tabName === 'currency-nav') {
     $('#content').load('currency.html', function () {
+			let currencyCards;
+			loadCurrencyCard().then(function (result) {
+				currencyCards = result;
+			});
 			window.interval = setInterval(function () {
 				updateCurrencyValues();
 			}, 60000);
@@ -39,13 +48,20 @@ function loadCurrentTab (tabName) {
   }
 }
 
+function setLoading () {
+	$('#loading-wrap').removeAttr('class');
+}
+
+function closeLoading () {
+	$('#loading-wrap').addClass('hidden');
+}
+
 /** FUNCTIONS FOR STOCK CONTENT **/
 async function loadStockCards () {
 	let currentStocks = await getCurrentStocks();
 	if (!currentStocks) { return; }
 	$('#stock-content').empty();
-	let loader = $('<div><p class="saving"><span>.</span><span>.</span><span>.</span></p></div>');
-	$('#stock-content').append(loader);
+	setLoading();
 	await updateStockYtdClose(currentStocks);
 	let stockElements = [];
 	for(let stock of currentStocks) {
@@ -54,7 +70,7 @@ async function loadStockCards () {
 		$('#stock-content').append(stockCard);
 		stockElements.push(stockCard);
 	}
-	loader.remove();
+	closeLoading();
 	return stockElements;
 }
 
@@ -177,15 +193,17 @@ function clearStocks () {
 }
 
 function createStockCard(symbol, currPrice, startPrice) {
-	let card = $('<div class="stock-card"></div>');
+	let card = $('<div class="card"></div>');
 	let stockSymbol = $('<div class="stock-symbol"></div>').text(symbol);
 	let stockDetails = $('<div class="stock-details"></div>');
 	let stockCurrPrice = $('<div class="stock-detail currPrice"></div>').text((currPrice).toFixed(2));
-	let stockDifference = $('<div class="stock-detail difference"></div>').text((currPrice - startPrice).toFixed(2));
+	let stockDifference = $('<div class="stock-detail difference"></div>').text(Math.abs(currPrice - startPrice).toFixed(2));
 	if (currPrice - startPrice >= 0) {
 		card.addClass('stock-gain');
+		stockDifference.prepend($('<span><i class="material-icons" style="font-size:20px;">arrow_upward</i></span>'));
 	} else {
 		card.addClass('stock-loss');
+		stockDifference.prepend($('<span><i class="material-icons" style="font-size:20px;">arrow_downward</i></span>'));
 	}
 	stockDetails.append(stockCurrPrice);
 	stockDetails.append(stockDifference);
@@ -195,6 +213,40 @@ function createStockCard(symbol, currPrice, startPrice) {
 }
 
 /** FUNCTIONS FOR CURRENCY CONTENT **/
+async function loadCurrencyCard () {
+	let currentCurrencies = await getCurrentCurrencies();
+	if (!currentCurrencies) { return; }
+	$('#currency-content').empty();
+	setLoading();
+	let currencyElements = [];
+	for(let currency of currentCurrencies) {
+		let quote = await getCurrencyValue(currency.from, currency.to);
+		let currencyCard = createCurrencyCard(quote['1. From_Currency Code'], '1.00', quote['3. To_Currency Code'], parseFloat(quote['5. Exchange Rate']).toFixed(4));
+		$('#currency-content').append(currencyCard);
+		currencyElements.push(currencyCard);
+	}
+	closeLoading();
+	return currencyElements;
+}
+
+function createCurrencyCard (fromSymbol, fromValue, toSymbol, toValue) {
+	let card = $('<div class="card currency-back"></div>');
+	let currencyFrom = $('<div class="currency-from"></div>');
+	let icon = $('<div class="compare-icon-wrapper"><i class="material-icons">compare_arrows</i></div>');
+	let currencyTo = $('<div class="currency-to"></div>');
+	let currencyFromSymbol = $('<div class="currency-symbol"></div>').text(fromSymbol);
+	let currencyToSymbol = $('<div class="currency-symbol"></div>').text(toSymbol);
+	let currencyFromPrice = $('<div class="currency-value"></div>').text(fromValue);
+	let currencyToPrice = $('<div class="currency-value"></div>').text(toValue);
+	currencyFrom.append(currencyFromSymbol);
+	currencyFrom.append(currencyFromPrice);
+	currencyTo.append(currencyToSymbol);
+	currencyTo.append(currencyToPrice);
+	card.append(currencyFrom);
+	card.append(icon);
+	card.append(currencyTo);
+	return card;
+}
 async function getCurrencyValue (from, to) {
   return new Promise(function (resolve, reject) {
     let xhr = new XMLHttpRequest();
@@ -209,23 +261,18 @@ async function getCurrencyValue (from, to) {
   });
 }
 
-async function updateCurrencyValues () {
-	let currentCurrencies = await getCurrentCurrencies();
-  if (!currentCurrencies) { return; }
-  $('#currency-table tbody').empty();
-  let loader = $('<tr><td><p class="saving"><span>.</span><span>.</span><span>.</span></p></td></tr>');
-  $('#currency-table tbody').append(loader);
-  for (let currency of currentCurrencies) {
-    let quote = await getCurrencyValue(currency.from, currency.to);
-    // Create a row
-    let row = $('<tr></tr>');
-    row.append($('<td></td>').text(quote['1. From_Currency Code']));
-    row.append($('<td></td>').text('1.00'));
-    row.append($('<td></td>').text(quote['3. To_Currency Code']));
-		row.append($('<td></td>').text(quote['5. Exchange Rate']));
-    $('#currency-table tbody').prepend(row);
-  }
-  loader.remove();
+async function updateCurrencyValues (currencyElements) {
+	for (let element of stockElements) {
+		let symbol = element.find('.stock-symbol').text();
+		let currPriceElement = element.find('.stock-detail.currPrice');
+		let currPrice = parseFloat(element.find('.stock-detail.currPrice').text());
+		let differenceElement = element.find('.stock-detail.difference');
+		let difference = parseFloat(element.find('.stock-detail.difference').text());
+
+		let quote = await getStockValue(symbol);
+		currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
+		differenceElement.text(((parseFloat(quote['1. open']) - currPrice) + difference).toFixed(2));
+	}
 }
 
 async function addCurrencies (from, to) {

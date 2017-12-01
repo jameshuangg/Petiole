@@ -20,6 +20,7 @@ figure {
 
 figcaption {
 	text-align: center;
+	color: whitesmoke;
 }
 
 #stock-content {
@@ -27,8 +28,12 @@ figcaption {
 	overflow-y: scroll;
 }
 
+.hidden {
+	display: none;
+}
+
 .popup-wrapper {
-	width: 428px;
+	width: 348px;
 	height: 334px;
 	background-color: #212121;
 }
@@ -61,13 +66,22 @@ figcaption {
 
 #content {
 	height: 100%;
-	width: 360px;
+	width: 280px;
 	float: left;
 }
 
-.stock-card {
+
+#loading-wrap {
+	position: absolute;
+	top: 80px;
+	left: 10px;
+	height: 58px;
+	width: 58px;
+}
+
+.card {
 	border-radius: 10px;
-	height: 85px;
+	height: 65px;
 	width: 90%;
 	margin: 20px auto;
 	display: flex;
@@ -89,14 +103,14 @@ figcaption {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 48px;
+	font-size: 34px;
 }
 
 .stock-details {
 	padding: 10px 0px;
 	height: 100%;
 	width: 50%;
-	font-size: 28px;
+	font-size: 20px;
 }
 
 .stock-detail {
@@ -104,6 +118,35 @@ figcaption {
 	height: 50%;
 	width: 100%;
 	text-align: center;
+}
+
+.currency-from {
+	width: 40%;
+	height: 100%;
+	font-size: 20px;
+	padding: 10px 0px;
+	text-align: center;
+}
+
+.currency-to {
+	width: 40%;
+	height: 100%;
+	font-size: 20px;
+	padding: 10px 0px;
+	text-align: center;
+}
+
+.currency-back {
+	background-color: slategrey;
+}
+
+.compare-icon-wrapper {
+	height: 100%;
+	width: 10%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size:30px;
 }
 
 /* Loader CSS taken from online
