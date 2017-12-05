@@ -16,6 +16,7 @@ body {
 
 figure {
 	margin: 0px;
+	cursor: pointer;
 }
 
 figcaption {
@@ -47,6 +48,26 @@ figcaption {
 	box-shadow: 0px 2px 2px #888888;
 }
 
+.input-field {
+	position: absolute;
+	height: 30px;
+	bottom: 0px;
+	left: 68px;
+	width: 0px;
+	background-color: #939393;
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	outline: none;
+	font-size: 20px;
+	overflow: hidden;
+	transition: all .3s ease;
+}
+
+.input-field.expanded {
+	width: 280px;
+	padding: 5px 10px;
+}
+
 .nav-item {
 	height: 50%;
 	display: flex;
@@ -56,12 +77,36 @@ figcaption {
 .nav-icon {
 	height: 58px;
 	width: 58px;
+	background-color: #939393;
+	border-radius: 10px;
 }
 
 .active-icon {
-	border: 2px solid #888888;
-	border-radius: 10px;
+	border: 2px solid whitesmoke;
+}
+
+.icon {
+	width: 20px;
+}
+
+
+.action-wrapper {
+	position: absolute;
+	bottom: 0px;
+	left: 0px;
+	width: 68px;
+	height: 30px;
+	border-top: 1px solid #888888;
+}
+
+.action-icon {
 	background-color: #939393;
+	border-radius: 5px;
+	position: absolute;
+	bottom: 5px;
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
 }
 
 #content {
