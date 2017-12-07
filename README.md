@@ -2,7 +2,7 @@
 
 **Installation Instructions**
 1. Clone the repository and save in a directory
-2. Navigate to the [chrome extension webpage](chrome://extensions)
+2. Navigate to the [chrome extension webpage](chrome://extensions/)
 3. Click on `Load unpacked extension...`
 4. Find the directory you saved it to and load
 
