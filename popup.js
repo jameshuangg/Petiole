@@ -22,15 +22,40 @@ $(document).ready(() => {
 		if (activeTab === 'stock-nav') {
 			$('#stock-input').toggleClass('expanded');
 			$('#stock-input').focus();
+			$('#stock-input').keypress(async function (e) {
+				if (e.which !== 13) {
+					return;
+				}
+				let symbol = $('#stock-input').text().toUpperCase();
+				$('#stock-input').text('');
+				$('#stock-input').toggleClass('expanded');
+				await addStock(symbol);
+				await loadCurrentTab(activeTab);
+			});
 		} else if (activeTab === 'currency-nav') {
-			
+
 		}
 	});
 	
 	$('#remove').click(function () {
-		
+		let activeTab = getActiveTab();
+		if (activeTab === 'stock-nav') {
+			$('#stock-input').toggleClass('expanded');
+			$('#stock-input').focus();
+			$('#stock-input').keypress(async function (e) {
+				if (e.which !== 13) {
+					return;
+				}
+				let symbol = $('#stock-input').text().toUpperCase();
+				$('#stock-input').text('');
+				$('#stock-input').toggleClass('expanded');
+				await removeStock(symbol);
+				loadCurrentTab(activeTab);
+			});
+		} else if (activeTab === 'currency-nav') {
+
+		}
 	});
-	
 	
 	/**
 	FUNCTIONS FOR NAVIGATION 
@@ -39,7 +64,7 @@ $(document).ready(() => {
 		return $('.nav-icon.active-icon').attr('id');
 	}
 
-	function loadCurrentTab (tabName) {
+	async function loadCurrentTab (tabName) {
 		clearInterval(window.interval);
 		if (tabName === 'stock-nav') {
 			$('#content').load('stock.html', function () {
@@ -80,7 +105,7 @@ $(document).ready(() => {
 		if (!currentStocks) { return; }
 		$('#stock-content').empty();
 		setLoading();
-		await updateStockYtdClose(currentStocks);
+		currentStocks = await updateStockYtdClose(currentStocks);
 		let stockElements = [];
 		for(let stock of currentStocks) {
 			let quote = await getStockValue(stock.symbol);
@@ -92,53 +117,53 @@ $(document).ready(() => {
 		return stockElements;
 	}
 
-	async function updateStockValues (stockElements) {
-		for (let element of stockElements) {
-			let symbol = element.find('.stock-symbol').text();
-			let currPriceElement = element.find('.stock-detail.currPrice');
-			let currPrice = parseFloat(element.find('.stock-detail.currPrice').text());
-			let differenceElement = element.find('.stock-detail.difference');
-			let difference = parseFloat(element.find('.stock-detail.difference').text());
-
-			let quote = await getStockValue(symbol);
-			currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
-			differenceElement.text(((parseFloat(quote['1. open']) - currPrice) + difference).toFixed(2));
-		}
-	}
-
-	async function updateStockYtdClose (currentStocks) {
-		let tempStocks = [];
-		let currentDate = new Date();
-		let ytdDate = new Date(currentDate.getTime());
-		ytdDate.setDate(currentDate.getDate() - 1);
-		let ytdDateString = `${ytdDate.getFullYear()}-${ytdDate.getMonth() + 1}-${ytdDate.getDate()}`;
-		for (let stock of currentStocks) {
-			if (stock.ytdCloseDate !== ytdDateString) {
-				let ytdStock = await getYtdCloseStockValue(stock.symbol);
-				tempStocks.push({ symbol: stock.symbol, closePrice: ytdStock[0], ytdCloseDate: ytdStock[1] });
-			}	else {
+	async function addStock (stockSymbol) {
+		return new Promise(async function (resolve, reject) {
+			let tempStocks = [];
+			let currentStocks = await getCurrentStocks();
+			let stockIncluded = false;
+			for (let stock of currentStocks) {
+				tempStocks.push(stock);
+				if (stock.symbol === stockSymbol) {
+					stockIncluded = true;
+				}
+			}
+			if (!stockIncluded) {
+				let stock = {};
+				let ytdStock;
+				stock.symbol = stockSymbol;
 				tempStocks.push(stock);
 			}
-		}
-		return new Promise(function (resolve, reject) {
-			resolve(chrome.storage.local.set({ stocks: tempStocks }));
+			chrome.storage.local.set({ stocks: tempStocks }, function(storage) {
+				resolve(storage);
+			});
 		});
 	}
 
-	function getStockValue (symbol) {
+	async function removeStock (stockSymbol) {
+		return new Promise(async function (resolve, reject) {
+			let tempStocks = [];
+			let currentStocks = await getCurrentStocks();
+			for (let stock of currentStocks) {
+				if (stock.symbol === stockSymbol) { continue; }
+				tempStocks.push(stock);
+			}
+			chrome.storage.local.set({ stocks: tempStocks }, function(storage) {
+				resolve(storage);
+			});
+		});
+	}
+
+	function getCurrentStocks () {
 		return new Promise(function (resolve, reject) {
-			let xhr = new XMLHttpRequest();
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-					let jsonResponse = JSON.parse(xhr.response);
-					// Gets the most recent quote
-					let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'];
-					let quoteObject = jsonResponse['Time Series (1min)'];
-					resolve(quoteObject[lastRefresh]);
+			chrome.storage.local.get('stocks', function(storage) {
+				let currStocks = [];
+				for (let stock of storage.stocks) {
+					if (!stock.symbol || stock.symbol === '') { continue; }
+					currStocks.push(stock);
 				}
-			};
-			xhr.open('GET', `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=1min&outputSize=compact&datatype=json&apikey=${API_KEY}`);
-			xhr.send();
+				resolve(currStocks);
+			});
 		});
 	}
 
@@ -159,52 +184,20 @@ $(document).ready(() => {
 		});
 	}
 
-	async function addStock (stockSymbol) {
-		return new Promise(async function (resolve, reject) {
-			let tempStocks = [];
-			let currentStocks = await getCurrentStocks();
-			let stockIncluded = false;
-			for (let stock of currentStocks) {
-				tempStocks.push(stock);
-				if (stock.symbol === stockSymbol) {
-					stockIncluded = true;
-				}
-			}
-			if (!stockIncluded) {
-				let stock = {};
-				let ytdStock;
-				stock.symbol = stockSymbol;
-				try {
-					ytdStock = await getYtdCloseStockValue(stockSymbol);
-					console.log('hi2asdfdsaf');
-				} catch (e) {
-					console.log('Stock doesn\'t exists', e);
-				}
-				stock.closePrice = ytdStock[0];
-				stock.ytdCloseDate = ytdStock[1];
-				tempStocks.push(stock);
-			}
-			resolve(chrome.storage.local.set({ stocks: tempStocks }));
-		});
-	}
-
-	async function removeStock (stockSymbol) {
-		return new Promise(async function (resolve, reject) {
-			let tempStocks = [];
-			let currentStocks = await getCurrentStocks();
-			for (let stock of currentStocks) {
-				if (stock.symbol === stockSymbol) { continue; }
-				tempStocks.push(stock);
-			}
-			resolve(chrome.storage.local.set({ stocks: tempStocks }));
-		});
-	}
-
-	function getCurrentStocks () {
+	function getStockValue (symbol) {
 		return new Promise(function (resolve, reject) {
-			chrome.storage.local.get('stocks', function(storage) {
-				resolve(storage.stocks);
-			});
+			let xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+					let jsonResponse = JSON.parse(xhr.response);
+					// Gets the most recent quote
+					let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'];
+					let quoteObject = jsonResponse['Time Series (1min)'];
+					resolve(quoteObject[lastRefresh]);
+				}
+			};
+			xhr.open('GET', `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=1min&outputSize=compact&datatype=json&apikey=${API_KEY}`);
+			xhr.send();
 		});
 	}
 
@@ -236,8 +229,45 @@ $(document).ready(() => {
 		return card;
 	}
 
+	async function updateStockValues (stockElements) {
+		for (let element of stockElements) {
+			let symbol = element.find('.stock-symbol').text();
+			let currPriceElement = element.find('.stock-detail.currPrice');
+			let currPrice = parseFloat(element.find('.stock-detail.currPrice').text());
+			let differenceElement = element.find('.stock-detail.difference');
+			let difference = parseFloat(element.find('.stock-detail.difference').text());
+
+			let quote = await getStockValue(symbol);
+			currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
+			differenceElement.text(((parseFloat(quote['1. open']) - currPrice) + difference).toFixed(2));
+		}
+	}
+
+	async function updateStockYtdClose (currentStocks) {
+		return new Promise(async function (resolve, reject) {
+			let tempStocks = [];
+			let currentDate = new Date();
+			let ytdDate = new Date(currentDate.getTime());
+			ytdDate.setDate(currentDate.getDate() - 1);
+			let ytdDateString = `${ytdDate.getFullYear()}-${ytdDate.getMonth() + 1}-${(ytdDate.getDate() < 10) ? '0' + ytdDate.getDate() : ytdDate.getDate()}`;
+			for (let stock of currentStocks) {
+				if (stock.symbol && (!stock.ytdCloseDate || stock.ytdCloseDate !== ytdDateString)) {
+					let ytdStock = await getYtdCloseStockValue(stock.symbol);
+					tempStocks.push({ symbol: stock.symbol, closePrice: ytdStock[0], ytdCloseDate: ytdStock[1] });
+				}	else {
+					tempStocks.push(stock);
+				}
+			}
+			chrome.storage.local.set({ stocks: tempStocks });
+			resolve(tempStocks);
+		});
+	}
+
 	/**
-	FUNCTIONS FOR CURRENCY CONTENT
+	---------------- FUNCTIONS FOR CURRENCY CONTENT ----------------
+	Includes:
+	Adding Currencies
+	Removing Currencies
 	**/
 	async function loadCurrencyCard () {
 		let currentCurrencies = await getCurrentCurrencies();

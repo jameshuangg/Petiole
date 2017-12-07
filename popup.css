@@ -66,6 +66,7 @@ figcaption {
 .input-field.expanded {
 	width: 280px;
 	padding: 5px 10px;
+	padding: 3px 10px 7px 10px;
 }
 
 .nav-item {
