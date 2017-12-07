@@ -17,41 +17,43 @@ $(document).ready(() => {
     loadCurrentTab(activeTab);
   });
 	
+	$('#stock-add-input').keypress(async function (e) {
+		if (e.which !== 13) {
+			return;
+		}
+		let symbol = $('#stock-add-input').text().toUpperCase();
+		$('#stock-add-input').text('');
+		$('#stock-add-input').toggleClass('expanded');
+		await addStock(symbol);
+		await loadCurrentTab(activeTab);
+	});
+	
+	$('#stock-remove-input').keypress(async function (e) {
+		if (e.which !== 13) {
+			return;
+		}
+		let symbol = $('#stock-remove-input').text().toUpperCase();
+		$('#stock-remove-input').text('');
+		$('#stock-remove-input').toggleClass('expanded');
+		await removeStock(symbol);
+		await loadCurrentTab(activeTab);
+	});
+
 	$('#add').click(function () {
 		let activeTab = getActiveTab();
 		if (activeTab === 'stock-nav') {
-			$('#stock-input').toggleClass('expanded');
-			$('#stock-input').focus();
-			$('#stock-input').keypress(async function (e) {
-				if (e.which !== 13) {
-					return;
-				}
-				let symbol = $('#stock-input').text().toUpperCase();
-				$('#stock-input').text('');
-				$('#stock-input').toggleClass('expanded');
-				await addStock(symbol);
-				await loadCurrentTab(activeTab);
-			});
+			$('#stock-add-input').toggleClass('expanded');
+			$('#stock-add-input').focus();
 		} else if (activeTab === 'currency-nav') {
 
 		}
 	});
-	
+
 	$('#remove').click(function () {
 		let activeTab = getActiveTab();
 		if (activeTab === 'stock-nav') {
-			$('#stock-input').toggleClass('expanded');
-			$('#stock-input').focus();
-			$('#stock-input').keypress(async function (e) {
-				if (e.which !== 13) {
-					return;
-				}
-				let symbol = $('#stock-input').text().toUpperCase();
-				$('#stock-input').text('');
-				$('#stock-input').toggleClass('expanded');
-				await removeStock(symbol);
-				await loadCurrentTab(activeTab);
-			});
+			$('#stock-remove-input').toggleClass('expanded');
+			$('#stock-remove-input').focus();
 		} else if (activeTab === 'currency-nav') {
 
 		}
@@ -108,7 +110,13 @@ $(document).ready(() => {
 		currentStocks = await updateStockYtdClose(currentStocks);
 		let stockElements = [];
 		for(let stock of currentStocks) {
-			let quote = await getStockValue(stock.symbol);
+			let quote;
+			try {
+				quote = await getStockValue(stock.symbol);
+			} catch (e) {
+				console.log(e);
+				return [];
+			}
 			let stockCard = createStockCard(stock.symbol, parseFloat(quote['1. open']), stock.closePrice);
 			$('#stock-content').append(stockCard);
 			stockElements.push(stockCard);
@@ -155,14 +163,11 @@ $(document).ready(() => {
 			setLoading();
 			let tempStocks = [];
 			let currentStocks = await getCurrentStocks();
-			console.log(currentStocks);
 			for (let stock of currentStocks) {
 				if (stock.symbol === stockSymbol) { continue; }
 				tempStocks.push(stock);
 			}
-			console.log(tempStocks);
 			chrome.storage.local.set({ stocks: tempStocks }, function() {
-				console.log(tempStocks);
 				resolve(tempStocks);
 			});
 			closeLoading();
@@ -257,9 +262,11 @@ $(document).ready(() => {
 			let differenceElement = element.find('.stock-detail.difference');
 			let difference = parseFloat(element.find('.stock-detail.difference').text());
 
-			let quote = await getStockValue(symbol);
-			if (quote.reason) {
-				console.log(quote);
+			let quote;
+			try {
+				quote = await getStockValue(symbol);
+			} catch (e) {
+				console.log(e);
 				return;
 			}
 			currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
