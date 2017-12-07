@@ -50,7 +50,7 @@ $(document).ready(() => {
 				$('#stock-input').text('');
 				$('#stock-input').toggleClass('expanded');
 				await removeStock(symbol);
-				loadCurrentTab(activeTab);
+				await loadCurrentTab(activeTab);
 			});
 		} else if (activeTab === 'currency-nav') {
 
@@ -83,7 +83,7 @@ $(document).ready(() => {
 					currencyCards = result;
 				});
 				window.interval = setInterval(function () {
-					updateCurrencyValues();
+					updateCurrencyValues(currencyCards);
 				}, 60000);
 			});
 		}
@@ -119,6 +119,15 @@ $(document).ready(() => {
 
 	async function addStock (stockSymbol) {
 		return new Promise(async function (resolve, reject) {
+			setLoading();
+			try {
+				let quote = await getStockValue(stockSymbol);
+				console.log(quote);
+			} catch (e) {
+				console.log(e);
+				closeLoading();
+				return;
+			}
 			let tempStocks = [];
 			let currentStocks = await getCurrentStocks();
 			let stockIncluded = false;
@@ -134,23 +143,29 @@ $(document).ready(() => {
 				stock.symbol = stockSymbol;
 				tempStocks.push(stock);
 			}
-			chrome.storage.local.set({ stocks: tempStocks }, function(storage) {
-				resolve(storage);
+			chrome.storage.local.set({ stocks: tempStocks }, function() {
+				resolve(tempStocks);
 			});
+			closeLoading();
 		});
 	}
 
 	async function removeStock (stockSymbol) {
 		return new Promise(async function (resolve, reject) {
+			setLoading();
 			let tempStocks = [];
 			let currentStocks = await getCurrentStocks();
+			console.log(currentStocks);
 			for (let stock of currentStocks) {
 				if (stock.symbol === stockSymbol) { continue; }
 				tempStocks.push(stock);
 			}
-			chrome.storage.local.set({ stocks: tempStocks }, function(storage) {
-				resolve(storage);
+			console.log(tempStocks);
+			chrome.storage.local.set({ stocks: tempStocks }, function() {
+				console.log(tempStocks);
+				resolve(tempStocks);
 			});
+			closeLoading();
 		});
 	}
 
@@ -191,8 +206,12 @@ $(document).ready(() => {
 				if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
 					let jsonResponse = JSON.parse(xhr.response);
 					// Gets the most recent quote
-					let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'];
 					let quoteObject = jsonResponse['Time Series (1min)'];
+					if (!quoteObject) {
+						reject({ reason: 'Invalid Stock Symbol' });
+						return;
+					}
+					let lastRefresh = jsonResponse['Meta Data']['3. Last Refreshed'];
 					resolve(quoteObject[lastRefresh]);
 				}
 			};
@@ -204,8 +223,9 @@ $(document).ready(() => {
 	function clearStocks () {
 		return new Promise(function (resolve, reject) {
 			let empty = [];
-			chrome.storage.local.set({ stocks: empty });
-			resolve('Cleared Cache');
+			chrome.storage.local.set({ stocks: empty }, function () {
+				resolve('Cleared Cache');
+			});
 		});
 	}
 
@@ -238,6 +258,10 @@ $(document).ready(() => {
 			let difference = parseFloat(element.find('.stock-detail.difference').text());
 
 			let quote = await getStockValue(symbol);
+			if (quote.reason) {
+				console.log(quote);
+				return;
+			}
 			currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
 			differenceElement.text(((parseFloat(quote['1. open']) - currPrice) + difference).toFixed(2));
 		}
@@ -258,8 +282,9 @@ $(document).ready(() => {
 					tempStocks.push(stock);
 				}
 			}
-			chrome.storage.local.set({ stocks: tempStocks });
-			resolve(tempStocks);
+			chrome.storage.local.set({ stocks: tempStocks }, function () {
+				resolve(tempStocks);
+			});
 		});
 	}
 
@@ -303,6 +328,21 @@ $(document).ready(() => {
 		card.append(currencyTo);
 		return card;
 	}
+
+	async function updateCurrencyValues (currencyElements) {
+		for (let element of currencyElements) {
+			let fromSymbol = element.find('.currency-from .currency-symbol').text();
+			let toSymbol = element.find('.currency-to .currency-symbol').text();
+			let fromPrice = element.find('.currency-from .currency-value');
+			let toPrice = element.find('.currency-to .currency-value');
+
+			let quote = await getCurrencyValue(fromSymbol, toSymbol);
+
+			fromPrice.text('1.00');
+			toPrice.text(parseFloat(quote['5. Exchange Rate']));
+		}
+	}
+
 	async function getCurrencyValue (from, to) {
 		return new Promise(function (resolve, reject) {
 			let xhr = new XMLHttpRequest();
@@ -317,56 +357,45 @@ $(document).ready(() => {
 		});
 	}
 
-	async function updateCurrencyValues (currencyElements) {
-		for (let element of stockElements) {
-			let symbol = element.find('.stock-symbol').text();
-			let currPriceElement = element.find('.stock-detail.currPrice');
-			let currPrice = parseFloat(element.find('.stock-detail.currPrice').text());
-			let differenceElement = element.find('.stock-detail.difference');
-			let difference = parseFloat(element.find('.stock-detail.difference').text());
-
-			let quote = await getStockValue(symbol);
-			currPriceElement.text(parseFloat(quote['1. open']).toFixed(2));
-			differenceElement.text(((parseFloat(quote['1. open']) - currPrice) + difference).toFixed(2));
-		}
-	}
-
 	async function addCurrencies (from, to) {
-		let tempCurrencies = [];
-		let currentCurrencies = await getCurrentCurrencies();
-		let currencyIncluded = false;
-		// Object to be added
-		let newCurrency = {};
-		newCurrency.from = from;
-		newCurrency.to = to;
-		if (currentCurrencies) {
-			for (let currency of currentCurrencies) {
-				tempCurrencies.push(currency);
-				if (currency.from === from && currency.to === to) {
-					currencyIncluded = true;
+		return new Promise(async function (resolve, reject) {
+			let tempCurrencies = [];
+			let currentCurrencies = await getCurrentCurrencies();
+			let currencyIncluded = false;
+			// Object to be added
+			let newCurrency = {};
+			newCurrency.from = from;
+			newCurrency.to = to;
+			if (currentCurrencies) {
+				for (let currency of currentCurrencies) {
+					tempCurrencies.push(currency);
+					if (currency.from === from && currency.to === to) {
+						currencyIncluded = true;
+					}
 				}
-			}
-			if (!currencyIncluded) {
+				if (!currencyIncluded) {
+					tempCurrencies.push(newCurrency);
+				}
+			} else {
 				tempCurrencies.push(newCurrency);
 			}
-		} else {
-			tempCurrencies.push(newCurrency);
-		}
-
-		return new Promise(function (resolve, reject) {
-			resolve(chrome.storage.local.set({ currencies: tempCurrencies }));
+			chrome.storage.local.set({ currencies: tempCurrencies }, function () {
+				resolve(tempCurrencies);
+			});
 		});
 	}
 
 	async function removeCurrencies (from, to) {
-		let tempCurrencies = [];
-		let currentCurrencies = await getCurrentCurrencies();
-		for (let currency of currentCurrencies) {
-			if (currency.from === from && currency.to === to) { continue; }
-			tempCurrencies.push(currency);
-		}
-		return new Promise(function (resolve, reject) {
-			resolve(chrome.storage.local.set({ currencies: tempCurrencies }));
+		return new Promise(async function (resolve, reject) {
+			let tempCurrencies = [];
+			let currentCurrencies = await getCurrentCurrencies();
+			for (let currency of currentCurrencies) {
+				if (currency.from === from && currency.to === to) { continue; }
+				tempCurrencies.push(currency);
+			}
+			chrome.storage.local.set({ currencies: tempCurrencies }, function () {
+				resolve(tempCurrencies);
+			});
 		});
 	}
 
@@ -380,7 +409,9 @@ $(document).ready(() => {
 
 	function clearCurrencies () {
 		return new Promise(function (resolve, reject) {
-			resolve(chrome.storage.local.set({ currencies: [] }));
+			chrome.storage.local.set({ currencies: [] }, function(storage) {
+				resolve('All cleared');
+			});
 		});
 	}
 });
