@@ -33,6 +33,10 @@ figcaption {
 	display: none;
 }
 
+.empty-content {
+	text-align: center;
+}
+
 .popup-wrapper {
 	width: 348px;
 	height: 334px;
@@ -166,6 +170,22 @@ figcaption {
 	text-align: center;
 }
 
+.stock-input-label {
+	width: 28%;
+}
+
+.stock-input {
+	width: 70%;
+	display: inline-block;
+	overflow-x: auto;
+	overflow-y: auto;
+	border-bottom:1px solid black;
+}
+
+.difference {
+	font-size: 14px;
+}
+
 .currency-from {
 	width: 40%;
 	height: 100%;
@@ -193,6 +213,17 @@ figcaption {
 	align-items: center;
 	justify-content: center;
 	font-size:30px;
+}
+
+.currency-input-label {
+	width: 19%;
+}
+
+.currency-input {
+	width: 30%;
+	display: inline-block;
+	overflow-x: auto;
+	border-bottom:1px solid black;
 }
 
 /* Loader CSS taken from online

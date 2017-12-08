@@ -30,14 +30,28 @@
 			<div class="action-icon" style="left:5px;"><img id="add" class="icon" src="add.png"></div>
 			<div class="action-icon" style="left:40px;"><img id="remove" class="icon" src="remove.png"></div>
 		</div>
-		<div id="stock-add-input" class="input-field" contenteditable="true">
+		<div id="stock-add-input-wrapper" class="input-field">
+			<span class="stock-input-label">Symbol:</span>
+			<div id="stock-add-input" class="stock-input" contenteditable="true"></div>
 		</div>
-		<div id="stock-remove-input" class="input-field" contenteditable="true">
+		<div id="stock-remove-input-wrapper" class="input-field">
+			<span class="stock-input-label">Symbol:</span>
+			<div id="stock-remove-input" class="stock-input" contenteditable="true"></div>
 		</div>
-<!--
-		<div id="currency-input" class="input-field">
+		
+		<div id="currency-add-input" class="input-field">
+			<span class="currency-input-label">From:</span>
+			<div id="currency-add-input-1" class="currency-input" contenteditable="true"></div>
+			<span class="currency-input-label">To:</span>
+			<div id="currency-add-input-2" class="currency-input" contenteditable="true"></div>
 		</div>
--->
+		<div id="currency-remove-input" class="input-field">
+			<span class="currency-input-label">From:</span>
+			<div id="currency-remove-input-1" class="currency-input" contenteditable="true"></div>
+			<span class="currency-input-label">To:</span>
+			<div id="currency-remove-input-2" class="currency-input" contenteditable="true"></div>
+		</div>
+		
 		<script type="text/javascript" src="jquery-3.2.1.min.js"></script>
 		<script type="text/javascript" src="popup.js"></script>
 	</body>

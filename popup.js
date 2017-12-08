@@ -21,10 +21,11 @@ $(document).ready(() => {
 		if (e.which !== 13) {
 			return;
 		}
-		let symbol = $('#stock-add-input').text().toUpperCase();
+		let symbol = $('#stock-add-input').text().toUpperCase().trim();
 		$('#stock-add-input').text('');
-		$('#stock-add-input').toggleClass('expanded');
+		$('#stock-add-input-wrapper').toggleClass('expanded');
 		await addStock(symbol);
+		let activeTab = getActiveTab();
 		await loadCurrentTab(activeTab);
 	});
 	
@@ -32,30 +33,89 @@ $(document).ready(() => {
 		if (e.which !== 13) {
 			return;
 		}
-		let symbol = $('#stock-remove-input').text().toUpperCase();
+		let symbol = $('#stock-remove-input').text().toUpperCase().trim();
 		$('#stock-remove-input').text('');
-		$('#stock-remove-input').toggleClass('expanded');
+		$('#stock-remove-input-wrapper').toggleClass('expanded');
 		await removeStock(symbol);
+		let activeTab = getActiveTab();
+		await loadCurrentTab(activeTab);
+	});
+	
+	$('#currency-add-input-1').keypress(async function (e) {
+		if (e.which !== 13) {
+			return;
+		}
+		let fromSymbol = $('#currency-add-input-1').text().toUpperCase().trim();
+		let toSymbol = $('#currency-add-input-2').text().toUpperCase().trim();
+		$('#currency-add-input-1').text('');
+		$('#currency-add-input-2').text('');
+		$('#currency-add-input').toggleClass('expanded');
+		await addCurrencies(fromSymbol, toSymbol);
+		let activeTab = getActiveTab();
+		await loadCurrentTab(activeTab);
+	});
+	
+	$('#currency-add-input-2').keypress(async function (e) {
+		if (e.which !== 13) {
+			return;
+		}
+		let fromSymbol = $('#currency-add-input-1').text().toUpperCase().trim();
+		let toSymbol = $('#currency-add-input-2').text().toUpperCase().trim();
+		$('#currency-add-input-1').text('');
+		$('#currency-add-input-2').text('');
+		$('#currency-add-input').toggleClass('expanded');
+		await addCurrencies(fromSymbol, toSymbol);
+		let activeTab = getActiveTab();
+		await loadCurrentTab(activeTab);
+	});
+	
+	$('#currency-remove-input-1').keypress(async function (e) {
+		if (e.which !== 13) {
+			return;
+		}
+		let fromSymbol = $('#currency-remove-input-1').text().toUpperCase().trim();
+		let toSymbol = $('#currency-remove-input-2').text().toUpperCase().trim();
+		$('#currency-remove-input-1').text('');
+		$('#currency-remove-input-2').text('');
+		$('#currency-remove-input').toggleClass('expanded');
+		await removeCurrencies(fromSymbol, toSymbol);
+		let activeTab = getActiveTab();
+		await loadCurrentTab(activeTab);
+	});
+	
+	$('#currency-remove-input-2').keypress(async function (e) {
+		if (e.which !== 13) {
+			return;
+		}
+		let fromSymbol = $('#currency-remove-input-1').text().toUpperCase().trim();
+		let toSymbol = $('#currency-remove-input-2').text().toUpperCase().trim();
+		$('#currency-remove-input-1').text('');
+		$('#currency-remove-input-2').text('');
+		$('#currency-remove-input').toggleClass('expanded');
+		await removeCurrencies(fromSymbol, toSymbol);
+		let activeTab = getActiveTab();
 		await loadCurrentTab(activeTab);
 	});
 
 	$('#add').click(function () {
 		let activeTab = getActiveTab();
 		if (activeTab === 'stock-nav') {
-			$('#stock-add-input').toggleClass('expanded');
+			$('#stock-add-input-wrapper').toggleClass('expanded');
 			$('#stock-add-input').focus();
 		} else if (activeTab === 'currency-nav') {
-
+			$('#currency-add-input').toggleClass('expanded');
+			$('#currency-add-input-1').focus();
 		}
 	});
 
 	$('#remove').click(function () {
 		let activeTab = getActiveTab();
 		if (activeTab === 'stock-nav') {
-			$('#stock-remove-input').toggleClass('expanded');
+			$('#stock-remove-input-wrapper').toggleClass('expanded');
 			$('#stock-remove-input').focus();
 		} else if (activeTab === 'currency-nav') {
-
+			$('#currency-remove-input').toggleClass('expanded');
+			$('#currency-remove-input-1').focus();
 		}
 	});
 	
@@ -81,7 +141,7 @@ $(document).ready(() => {
 		} else if (tabName === 'currency-nav') {
 			$('#content').load('currency.html', function () {
 				let currencyCards;
-				loadCurrencyCard().then(function (result) {
+				loadCurrencyCards().then(function (result) {
 					currencyCards = result;
 				});
 				window.interval = setInterval(function () {
@@ -104,7 +164,10 @@ $(document).ready(() => {
 	**/
 	async function loadStockCards () {
 		let currentStocks = await getCurrentStocks();
-		if (!currentStocks) { return; }
+		if (!currentStocks || currentStocks.length === 0) {
+			$('#stock-content').append($('<h2 class="empty-content">No Stocks Watched</h2>'));
+			return;
+		}
 		$('#stock-content').empty();
 		setLoading();
 		currentStocks = await updateStockYtdClose(currentStocks);
@@ -178,6 +241,10 @@ $(document).ready(() => {
 		return new Promise(function (resolve, reject) {
 			chrome.storage.local.get('stocks', function(storage) {
 				let currStocks = [];
+				if (storage.stocks === undefined) { 
+					resolve(currStocks);
+					return;
+				}
 				for (let stock of storage.stocks) {
 					if (!stock.symbol || stock.symbol === '') { continue; }
 					currStocks.push(stock);
@@ -239,7 +306,8 @@ $(document).ready(() => {
 		let stockSymbol = $('<div class="stock-symbol"></div>').text(symbol);
 		let stockDetails = $('<div class="stock-details"></div>');
 		let stockCurrPrice = $('<div class="stock-detail currPrice"></div>').text((currPrice).toFixed(2));
-		let stockDifference = $('<div class="stock-detail difference"></div>').text(Math.abs(currPrice - startPrice).toFixed(2));
+		
+		let stockDifference = $('<div class="stock-detail difference"></div>').text(`${Math.abs(currPrice - startPrice).toFixed(2)} (${(((currPrice - startPrice) / startPrice) * 100).toFixed(2)}%)`);
 		if (currPrice - startPrice >= 0) {
 			card.addClass('stock-gain');
 			stockDifference.prepend($('<span><img src="up_arrow.png" class="icon"></span>'));
@@ -255,6 +323,7 @@ $(document).ready(() => {
 	}
 
 	async function updateStockValues (stockElements) {
+		if (!stockElements) { return; }
 		for (let element of stockElements) {
 			let symbol = element.find('.stock-symbol').text();
 			let currPriceElement = element.find('.stock-detail.currPrice');
@@ -301,9 +370,12 @@ $(document).ready(() => {
 	Adding Currencies
 	Removing Currencies
 	**/
-	async function loadCurrencyCard () {
+	async function loadCurrencyCards () {
 		let currentCurrencies = await getCurrentCurrencies();
-		if (!currentCurrencies) { return; }
+		if (!currentCurrencies || currentCurrencies.length === 0) {
+			$('#currency-content').append($('<h2 class="empty-content">No Currencies Watched</h2>'));
+			return;
+		}
 		$('#currency-content').empty();
 		setLoading();
 		let currencyElements = [];
@@ -337,6 +409,7 @@ $(document).ready(() => {
 	}
 
 	async function updateCurrencyValues (currencyElements) {
+		if (!currencyElements) { return; }
 		for (let element of currencyElements) {
 			let fromSymbol = element.find('.currency-from .currency-symbol').text();
 			let toSymbol = element.find('.currency-to .currency-symbol').text();
