@@ -9,4 +9,4 @@
 **Usage Instructions**
 - Navigation \- Click on Stock or Currency icons
 - Adding Watch Items \- Navigate to the respective entity (Stock / Currency), click on the add icon and type in symbol(s)
-- Removing Watch Itesm \- Navigate to the respective entity (Stock / Currency), click on the remove icon and type in symbol(s)
+- Removing Watch Items \- Navigate to the respective entity (Stock / Currency), click on the remove icon and type in symbol(s)
