@@ -1,5 +1,12 @@
 # Petiole
 
+**Why is it called Petiole?**
+I called the app Petiole because its synonym is stalk (leaf base).
+It sounds similar to stock, which is the intention of my extension.
+Stalk is the connection between the leaf and the stem, which can be thought also as the connection between stock prices and a person.
+
+TL;DR: I tried to be cool
+
 **Installation Instructions**
 1. Clone the repository and save in a directory
 2. Navigate to the chrome extension webpage (chrome://extensions/)
